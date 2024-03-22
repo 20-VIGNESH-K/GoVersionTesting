@@ -1,0 +1,41 @@
+# .git/hooks/pre-commit
+name: Pre-commit Versioning and Tagging
+
+on:
+  push:
+    branches:
+      - QA-*
+
+jobs:
+  version_and_tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "20-VIGNESH-K"
+          git config --global user.email "vigneshvignesh7035@gmail.com"
+
+      - name: Get current branch name
+        id: branch_name
+        run: echo "::set-output name=branch::$(git symbolic-ref --short HEAD)"
+
+      - name: Determine version number
+        id: determine_version
+        run: |
+          current_version=$(git tag --list "v1.0.*_${{ steps.branch_name.outputs.branch }}*" --sort=-v:refname | head -n 1)
+          if [ -z "$current_version" ]; then
+            new_version="1"
+          else
+            current_version_number=$(echo $current_version | cut -d'.' -f3 | cut -d'_' -f1)
+            new_version=$((current_version_number + 1))
+          fi
+          echo "::set-output name=version::${new_version}"
+
+      - name: Tag commit
+        run: |
+          git tag "v1.0.${{ steps.determine_version.outputs.version }}_${{ steps.branch_name.outputs.branch }}"
+          git push --tags
