@@ -4,7 +4,7 @@ name: Pre-commit Versioning and Tagging
 on:
   push:
     branches:
-      - QA-*
+      - QA
 
 jobs:
   version_and_tag:
