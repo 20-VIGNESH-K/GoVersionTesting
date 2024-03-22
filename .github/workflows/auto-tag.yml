@@ -45,7 +45,7 @@ jobs:
       - name: Tag and push changes
         if: github.ref == 'refs/heads/QA'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           new_tag="v${{ steps.bump_version.outputs.new_version }}"
           git tag "$new_tag"
