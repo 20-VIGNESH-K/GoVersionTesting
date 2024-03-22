@@ -1,13 +1,12 @@
-# .git/hooks/pre-commit
-name: Pre-commit Versioning and Tagging
+name: Create Tag on Commit in QA Branch
 
 on:
   push:
     branches:
-      - QA
+      - 'QA-*'
 
 jobs:
-  version_and_tag:
+  create_tag:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,19 +22,20 @@ jobs:
         id: branch_name
         run: echo "::set-output name=branch::$(git symbolic-ref --short HEAD)"
 
-      - name: Determine version number
-        id: determine_version
+      - name: Get latest tag for the branch
+        id: latest_tag
         run: |
-          current_version=$(git tag --list "v1.0.*_${{ steps.branch_name.outputs.branch }}*" --sort=-v:refname | head -n 1)
-          if [ -z "$current_version" ]; then
-            new_version="1"
-          else
-            current_version_number=$(echo $current_version | cut -d'.' -f3 | cut -d'_' -f1)
-            new_version=$((current_version_number + 1))
-          fi
-          echo "::set-output name=version::${new_version}"
+          latest_tag=$(git describe --tags --match "v1.0.*_${{ steps.branch_name.outputs.branch }}*" --abbrev=0 || echo "v1.0.0_${{ steps.branch_name.outputs.branch }}")
+          echo "::set-output name=tag::${latest_tag}"
 
-      - name: Tag commit
+      - name: Determine new tag number
+        id: new_tag_number
         run: |
-          git tag "v1.0.${{ steps.determine_version.outputs.version }}_${{ steps.branch_name.outputs.branch }}"
-          git push --tags
+          current_tag_number=$(echo "${{ steps.latest_tag.outputs.tag }}" | cut -d'.' -f3 | cut -d'_' -f1)
+          new_tag_number=$((current_tag_number + 1))
+          echo "::set-output name=new_tag::${new_tag_number}"
+
+      - name: Create and push new tag
+        run: |
+          git tag "v1.0.${{ steps.new_tag_number.outputs.new_tag }}_${{ steps.branch_name.outputs.branch }}"
+          git push origin "v1.0.${{ steps.new_tag_number.outputs.new_tag }}_${{ steps.branch_name.outputs.branch }}"
