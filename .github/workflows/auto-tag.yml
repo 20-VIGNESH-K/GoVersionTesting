@@ -42,11 +42,12 @@ jobs:
           echo "New Version = $new_version"
           echo "::set-output name=new_version::$new_version"
 
-      - name: Tag and push changes
+            - name: Tag and push changes
         if: github.ref == 'refs/heads/QA'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           new_tag="v${{ steps.bump_version.outputs.new_version }}"
           git tag "$new_tag"
-          git push origin "$new_tag"
+          git push origin "$new_tag" --force-with-lease
+
