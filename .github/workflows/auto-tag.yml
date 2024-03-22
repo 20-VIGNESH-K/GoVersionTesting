@@ -1,41 +1,63 @@
-name: Create Tag on Commit in QA Branch
+name: Auto Tag on Commit
 
 on:
   push:
     branches:
-      - 'QA-*'
+      - QA  # Adjust this to the branch you want to tag
 
 jobs:
-  create_tag:
+  auto-tag:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Git
         run: |
-          git config --global user.name "20-VIGNESH-K"
-          git config --global user.email "vigneshvignesh7035@gmail.com"
+          git config user.name "20-VIGNESH-K"
+          git config user.email "vigneshvignesh7035@gmail.com"
 
-      - name: Get current branch name
-        id: branch_name
-        run: echo "::set-output name=branch::$(git symbolic-ref --short HEAD)"
+      - name: Get the latest tag
+        id: get-latest-tag
+        run: echo ::set-output name=tag::$(git describe --tags --abbrev=0)
 
-      - name: Get latest tag for the branch
-        id: latest_tag
+      - name: Get previous tag old
+        id: getPreVersion
         run: |
-          latest_tag=$(git describe --tags --match "v1.0.*_${{ steps.branch_name.outputs.branch }}*" --abbrev=0 || echo "v1.0.0_${{ steps.branch_name.outputs.branch }}")
-          echo "::set-output name=tag::${latest_tag}"
+          git fetch --prune --unshallow
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1)
+          echo "Previous tag: $PREV_TAG"
 
-      - name: Determine new tag number
-        id: new_tag_number
+      - name: Get previous tag
+        id: get_previous_tag
         run: |
-          current_tag_number=$(echo "${{ steps.latest_tag.outputs.tag }}" | cut -d'.' -f3 | cut -d'_' -f1)
-          new_tag_number=$((current_tag_number + 1))
-          echo "::set-output name=new_tag::${new_tag_number}"
+          previous_tag=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1))
+          echo "Previous version in new : $previous_tag"
 
-      - name: Create and push new tag
+      
+      - name: Bump version
+        id: bump_version
         run: |
-          git tag "v1.0.${{ steps.new_tag_number.outputs.new_tag }}_${{ steps.branch_name.outputs.branch }}"
-          git push origin "v1.0.${{ steps.new_tag_number.outputs.new_tag }}_${{ steps.branch_name.outputs.branch }}"
+          # Extract the previous tag
+          previous_tag="${{ steps.getPreVersion.outputs.PREV_TAG }}"
+          
+          # Extract the version number
+          version="${previous_tag}"
+
+          echo "Version $version"
+          
+          # Increment the version (assuming it follows semantic versioning X.Y.Z)
+          IFS='.' read -r major minor patch <<< "$version"
+          patch=$((patch + 1))
+          new_version="${major}.${minor}.${patch}"
+          
+          echo "New Version = $new_version"
+
+      - name: Tag and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          new_tag="v${{ steps.bump_version.outputs.new_version }}"
+          git tag "$new_tag"
+          git push origin "$new_tag"
