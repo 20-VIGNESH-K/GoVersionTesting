@@ -1,3 +1,3 @@
 # GoVersionTesting
 
-commit 1
+commit 8
