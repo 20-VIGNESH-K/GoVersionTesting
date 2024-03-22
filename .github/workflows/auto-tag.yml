@@ -3,7 +3,7 @@ name: Auto Tag on Commit
 on:
   push:
     branches:
-      - QA  # Adjust this to the branch you want to tag
+      - QA
 
 jobs:
   auto-tag:
@@ -18,43 +18,32 @@ jobs:
           git config user.name "20-VIGNESH-K"
           git config user.email "vigneshvignesh7035@gmail.com"
 
-      - name: Get the latest tag
-        id: get-latest-tag
-        run: echo ::set-output name=tag::$(git describe --tags --abbrev=0)
-
-      - name: Get previous tag old
-        id: getPreVersion
-        run: |
-          git fetch --prune --unshallow
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1)
-          echo "Previous tag: $PREV_TAG"
-
       - name: Get previous tag
         id: get_previous_tag
         run: |
-          previous_tag=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1))
-          echo "Previous version in new : $previous_tag"
+          git fetch --prune --unshallow
+          previous_tag=$(git describe --tags --abbrev=0)
+          echo "Previous tag: $previous_tag"
+          echo "::set-output name=previous_tag::$previous_tag"
 
-      
       - name: Bump version
         id: bump_version
         run: |
           # Extract the previous tag
-          previous_tag="${{ steps.getPreVersion.outputs.PREV_TAG }}"
+          previous_tag="${{ steps.get_previous_tag.outputs.previous_tag }}"
           
           # Extract the version number
-          version="${previous_tag}"
-
-          echo "Version $version"
+          IFS='.' read -r major minor patch <<< "$previous_tag"
           
-          # Increment the version (assuming it follows semantic versioning X.Y.Z)
-          IFS='.' read -r major minor patch <<< "$version"
+          # Increment the patch version
           patch=$((patch + 1))
           new_version="${major}.${minor}.${patch}"
           
           echo "New Version = $new_version"
+          echo "::set-output name=new_version::$new_version"
 
       - name: Tag and push changes
+        if: github.ref == 'refs/heads/QA'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
